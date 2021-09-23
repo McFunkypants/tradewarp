@@ -2,12 +2,13 @@
 A galactic shipping simulation game.
 
 Written by McFunkypants for the #JS13K game jam.
-Play here: <https://js13kgames.com/entries/tradewarp>
+Play the original game jam prototype here:
+<https://js13kgames.com/entries/tradewarp>
+
+Work in progress continues! (post compo)
 
 How to play:
 Click a ship, then click a planet!
-
-Watch as cargo gets transferred!
 
 [ and ] keys switch ships!
 

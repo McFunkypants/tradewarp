@@ -1,17 +1,19 @@
 // TradeWarp by @McFunkypants
 // a transport tycoon + tradewars inspired game 
-// made for the #js13k competition 2021
+// HD (post compo) edition
 
-const sector_W = 8000,
-    sector_H = 4500,
-    numstars = 1000,
-    numships = 100,
+const SECTOR_W = 8000,
+    SECTOR_H = 4500,
+    PLANET_COUNT = 1000,
+    SHIP_COUNT = 100,
     STARFIELD_COUNT = 50000,
+    BG_PARALLAX = 0.5,
     SHIP_MAX_HOLDS = 3,
     CLOSE_TO_DEST = 16,
     SCANRANGE = 100,
     SPR_W = 16,
-    SPR_H = 16;
+    SPR_H = 16,
+    GUI_SCALE = 2; // 16px font
 
 let paused,
     menuActive,
@@ -26,6 +28,7 @@ let paused,
     shipnameBGsprite,
     planetnameBGsprite,
     starfieldSprite,
+    bgstarfieldSprite,
     camFollowObj,
     currentlyHoveringObj,
     camX = 0,
@@ -37,13 +40,14 @@ let paused,
     mouseWorldY = 0,
     mouseIsDown = 0,
     ships = [],
-    stars = [];
+    planets = [];
 
 // RUN NOW!! INIT!!
 let sprites = new Image();
 sprites.onload = init;
 sprites.onerror = () => { console.log('unable to download sprites'); }
-sprites.src = 'spritez.min.png';
+sprites.src = 'Tradewarp.png';
+
 //let music = new Audio('TradeWarp.ogg');
 
 // we have 17 icons so far
@@ -116,13 +120,13 @@ function generateGlowSprite(r,rgba1="rgba(255,255,255,1)",rgba2="rgba(255,255,25
 function generateStarfieldSprite() {
     //console.log("generating starfield");
     let can = document.createElement('canvas');
-	can.width = sector_W;
-	can.height = sector_H;
+	can.width = SECTOR_W;
+	can.height = SECTOR_H;
 	let ctx = can.getContext('2d');
     for (let i=0, siz=0; i<STARFIELD_COUNT; i++) {
         siz = randrangefloat(1,6);
         gameCTX.globalAlpha = randrangefloat(0.25,1);
-        ctx.drawImage(glowSprite,0,0,glowSprite.width,glowSprite.height,rand(0,sector_W),rand(0,sector_H),siz,siz);
+        ctx.drawImage(glowSprite,0,0,glowSprite.width,glowSprite.height,rand(0,SECTOR_W),rand(0,SECTOR_H),siz,siz);
     }
     gameCTX.globalAlpha = 1;
 	return can;
@@ -157,26 +161,15 @@ function generateArrowSprite() {
 	return can;
 }
 
-var pixelfontimage = new Image(); 
 // a hacked version of boxybold by clint bellanger
-const pixelfontw = 8;
-const pixelfonth = 8;
-const charspacing = -2;
-const linespacing = 8;
-pixelfontimage.src = 'boxybold.min.png';
+var pixelfontimage = new Image(); 
+const pixelfontw = 8*GUI_SCALE;
+const pixelfonth = 8*GUI_SCALE;
+const charspacing = -2*GUI_SCALE;
+const linespacing = 8*GUI_SCALE;
+pixelfontimage.src = 'boxybold.16px.png';
 pixelfontimage.onload = function() { pixelfontimage.loaded=true; }
 const pixelfontchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ!\"#$%&'(),./0123456789:?";
-
-// a really small pixel font by binarymoon
-// this a the data for a 240x6 pixel 4 color .PNG file
-// it loads instantly - no waiting for onload() events
-// and it takes up only 552 bytes of js! =)
-//const pixelfontw = 3;
-//const pixelfonth = 6;
-//const charspacing = 1;
-//const linespacing = 8;
-//const pixelfontchars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789.,;:?!-_\'#\"\\/<>()@";
-//pixelfontimage.src = "data:image/gif;base64,iVBORw0KGgoAAAANSUhEUgAAAPAAAAAGCAQAAABXl9sdAAABZElEQVRIx71WC5KFIAzjsLn/FXjzVoUkDYqzO4vjD6G0SVpsHb3/nN/rce+jx95a69aOnta+9/EVxWa1T3Pz9bJ7WObm79zHvqxH37Xd8UdchMgVYy998xnXrNXa0//qlaOkEZ93jHec3+o0f3bYJnQ6coe2tbt6VckMQAnGIRdcsK4pF4lG8XEEe+JTPxXoSlSNLtHnzz5C0gyT0CprWksyz3PRAlEHa5gBCEgPprISqflMvuXKkaRYocmyU3vP4kvAWp0De8WifKofnqWJ+jWpyk5bF9u0oMOWZlm/ZMnKAvmAPTrHF7DQcgRL8YG3gjvfiKTutazC6iKo3qUq87x5yEqgPL4jOwXMuwcZ890FgZ5CkhYoV7SWUM85Wc9LdA/lKGUwdnzTDcQlU+vYrEb2X8I9ELFC9+nTcutCbSrtKxlUBOoe/PYP5FftFNTD8fZ3aMJKweLOi3dHySL8BRL/d3wA3ztcx/A4sgoAAAAASUVORK5CYII=";
 
 function micro_pixel_font(txt,x,y) {
     if (!txt) return;
@@ -211,10 +204,10 @@ function micro_pixel_font(txt,x,y) {
         if (c!="\n") ox += pixelfontw + charspacing; // advance to next column
         
         // hack: boxybold variable font hacks:
-        if (c=="I"||c=="1") ox-=3;
-        if (c=="("||c==")") ox-=2;
-        if (c=="W"||c=="M") ox+=2;
-        if (c=="Y"||c=="N") ox+=1;
+        if (c=="I"||c=="1") ox-=3*GUI_SCALE;
+        if (c=="("||c==")") ox-=2*GUI_SCALE;
+        if (c=="W"||c=="M") ox+=2*GUI_SCALE;
+        if (c=="Y"||c=="N") ox+=1*GUI_SCALE;
     }
 }
 
@@ -251,23 +244,26 @@ function randomArrayItem(arr) {
 function generate() {
 	//console.log("generate");
 	
-	glowSprite = generateGlowSprite(16,"rgba(255,255,255,0.5)","rgba(255,255,255,0)");
-    arrowSprite = generateArrowSprite();
+    glowSprite = generateGlowSprite(16,"rgba(255,255,255,0.5)","rgba(255,255,255,0)");
     highlightSprite = generateGlowSprite(32,"rgba(9,255,255,1)","rgba(9,255,255,0)");
-	trailSprite = generateGradientSprite("rgba(255,255,255,0.5)",0,0,"rgba(255,255,255,0)",1000,1);
+    trailSprite = generateGradientSprite("rgba(255,255,255,0.5)",0,0,"rgba(255,255,255,0)",1000,1);
+
+    arrowSprite = generateArrowSprite();
 	starfieldSprite = generateStarfieldSprite();
-    infoBGsprite = generateGradientSprite("rgba(0,0,0,0.5)",0,0,"rgba(0,0,0,0)",128,56);
-    statsBGsprite = generateGradientSprite("rgba(0,0,0,0.5)",0,0,"rgba(0,0,0,0)",2048,512);
-    headerBGsprite = generateGradientSprite("rgba(0,255,255,1)",0,0,"rgba(0,255,255,0)",2048,128);
-    planetnameBGsprite = generateGradientSprite("rgba(255,255,255,0.5)",0,0,"rgba(255,255,255,0)",128,16);
-    shipnameBGsprite = generateGradientSprite("rgba(0,255,255,0.5)",0,0,"rgba(0,255,255,0)",128,16);
+	bgstarfieldSprite = generateStarfieldSprite(); // needs glowsprite
+
+    infoBGsprite = generateGradientSprite("rgba(0,0,0,0.5)",0,0,"rgba(0,0,0,0)",128*GUI_SCALE,56*GUI_SCALE);
+    statsBGsprite = generateGradientSprite("rgba(0,0,0,0.5)",0,0,"rgba(0,0,0,0)",2048*GUI_SCALE,512*GUI_SCALE);
+    headerBGsprite = generateGradientSprite("rgba(0,255,255,1)",0,0,"rgba(0,255,255,0)",2048*GUI_SCALE,128*GUI_SCALE);
+    planetnameBGsprite = generateGradientSprite("rgba(255,255,255,0.5)",0,0,"rgba(255,255,255,0)",128*GUI_SCALE,16*GUI_SCALE);
+    shipnameBGsprite = generateGradientSprite("rgba(0,255,255,0.5)",0,0,"rgba(0,255,255,0)",128*GUI_SCALE,16*GUI_SCALE);
 	
-	for (let i=0;i<numstars;i++) {
-        stars[i] = {
+	for (let i=0;i<PLANET_COUNT;i++) {
+        planets[i] = {
             n:rndName(3),
             spr:2,
-            x:rand(SPR_W,sector_W-SPR_W),
-            y:rand(SPR_H,sector_H-SPR_H),
+            x:rand(SPR_W,SECTOR_W-SPR_W),
+            y:rand(SPR_H,SECTOR_H-SPR_H),
             ang:0,
             rotvel:randrangefloat(-0.025,0.025),
             age:0,
@@ -277,20 +273,20 @@ function generate() {
             production:[],
             holdsInUse:rand(1,3)
         };
-        for (let h=0; h<stars[i].holdsInUse; h++) {
+        for (let h=0; h<planets[i].holdsInUse; h++) {
             // FIXME: posible to collide random hold name and have fewer holdsInUse
-            stars[i].cargo[randomArrayItem(mat)] = rand(1,99);
+            planets[i].cargo[randomArrayItem(mat)] = rand(1,99);
         }
     }
-	for (let i=0;i<numships;i++) {
+	for (let i=0;i<SHIP_COUNT;i++) {
         ships[i] = {
             n:rndName(),
             spr:1,
-            x:rand(SPR_W,sector_W-SPR_W),
-            y:rand(SPR_H,sector_H-SPR_H),
+            x:rand(SPR_W,SECTOR_W-SPR_W),
+            y:rand(SPR_H,SECTOR_H-SPR_H),
             vel:0,//rand(1,4),
             ang:rand(0,360),
-            destination:0,//randomArrayItem(stars),
+            destination:0,//randomArrayItem(planets),
             holdsInUse:0,
             maxHolds:SHIP_MAX_HOLDS,
             accel:0.02,
@@ -378,13 +374,13 @@ function onclick(e) {
     let nearestShip = closest(ships,mouseWorldX,mouseWorldY);
     let shipDist = dist(nearestShip.x,nearestShip.y,mouseWorldX,mouseWorldY);
 
-    let nearestStar = closest(stars,mouseWorldX,mouseWorldY);
-    let starDist = dist(nearestStar.x,nearestStar.y,mouseWorldX,mouseWorldY);
+    let nearestPlanet = closest(planets,mouseWorldX,mouseWorldY);
+    let planetDist = dist(nearestPlanet.x,nearestPlanet.y,mouseWorldX,mouseWorldY);
 
-    if (starDist < CLOSE_TO_DEST) {
-        //console.log("clicked star "+nearestStar.n);
+    if (planetDist < CLOSE_TO_DEST) {
+        //console.log("clicked planet "+nearestPlanet.n);
         if (camFollowObj) {
-            camFollowObj.destination = nearestStar;
+            camFollowObj.destination = nearestPlanet;
             camFollowObj.routeLength = distance(camFollowObj,camFollowObj.destination); // so we know eta
             //console.log("starting a journey of length "+camFollowObj.routeLength);
         }
@@ -477,7 +473,7 @@ function onmousedown(e) {
 
 function renderInventory(obj,cx,cy) {
     if (cx==undefined) cx = obj.x-camX;
-    if (cy==undefined) cy = obj.y-camY+8;
+    if (cy==undefined) cy = obj.y-camY+8*GUI_SCALE;
     cx = Math.round(cx);
     cy = Math.round(cy);
     let holdsused = 0;
@@ -485,16 +481,16 @@ function renderInventory(obj,cx,cy) {
     for (hold in obj.cargo) {
         //console.log("hold:"+hold);
         holdsused++;
-        micro_pixel_font(hold+":"+obj.cargo[hold],cx+8,cy+4);
+        micro_pixel_font(hold+":"+obj.cargo[hold],cx+6*GUI_SCALE,cy+4);
 		let sprnum = matindex.indexOf(hold) % 17 + 3; // HARDCODED reuse
-		gameCTX.drawImage(sprites,sprnum*SPR_W,0,SPR_W,SPR_H,cx-10,cy-1,SPR_W,SPR_H); // mat icon
-        cy += 16;
+		gameCTX.drawImage(sprites,sprnum*SPR_W,0,SPR_W,SPR_H,cx-10,cy-1+4,SPR_W,SPR_H); // mat icon
+        cy += 16*GUI_SCALE;
     }
 
     // no cargo? we have room for a tutorial!
     if (!holdsused) {
         gameCTX.globalAlpha = 0.25;
-        micro_pixel_font("Cargo holds are empty.\nClick ships and planets to warp.\n\nShips auto-trade to\nmaximize profit.",cx-12,cy+4);
+        micro_pixel_font("Cargo holds are empty.\nClick ships and planets to warp.\n\nShips auto-trade to\nmaximize profit.",cx-8,cy+4);
         gameCTX.globalAlpha = 1;
     }
     
@@ -549,7 +545,7 @@ function renderGUI(smallMode) {
 
     if (smallMode) { // tiny one on top of screen!
         cy = 4;
-        spacing = 36;
+        spacing = 36*GUI_SCALE;
         // centered
         startx = cx = Math.round(gameCanvas.width/2 - (spacing*mat.length/2));
     }
@@ -568,7 +564,7 @@ function renderGUI(smallMode) {
         num = guiStatsCount[holdname]?guiStatsCount[holdname]:0; // zero if undefined
         //console.log('mat ui: '+holdname+' = '+num); 
         
-        micro_pixel_font((smallMode?'':holdname+':')+num,cx+8,cy+4);
+        micro_pixel_font((smallMode?'':holdname+':')+num,cx+8,cy/*+4*/);
 		
         // the icon
 		let sprnum = matindex.indexOf(holdname) % 17 + 3; // HARDCODED reuse
@@ -586,42 +582,45 @@ function renderGUI(smallMode) {
 function renderShipInfo(ship,centeredOnScreen) {
     let x = Math.round(ship.x-camX);
     let y = Math.round(ship.y-camY);
+
     if (centeredOnScreen) { // stops a wobble due to float coords
         x = Math.round(gameCanvas.width/2);
         y = Math.round(gameCanvas.height/2);
     }
-    gameCTX.drawImage(shipnameBGsprite,x-64,y-80-16);
+    gameCTX.drawImage(shipnameBGsprite,x-64*GUI_SCALE+16,y-80*GUI_SCALE-12);
 
     micro_pixel_font(ship.n.toUpperCase()+' (cargo ship)',
-        x-64+4,y-75-16);
+        x-64*GUI_SCALE+4*GUI_SCALE+16,y-75*GUI_SCALE-12);
     
-    renderInventory(ship,x-64+16,y-60-16);
+    renderInventory(ship,x-64*GUI_SCALE+16*GUI_SCALE,y-60*GUI_SCALE-16);
 
-    gameCTX.drawImage(arrowSprite,x-8,y-16-8);
+    gameCTX.drawImage(arrowSprite,x-8,y-16*GUI_SCALE+4);
 
     if (ship.destination) {
-        micro_pixel_font(Math.round(distance(ship,ship.destination))+"au to "+ship.destination.n,x+16,y-4);
+        micro_pixel_font(Math.round(distance(ship,ship.destination))+"au to "+ship.destination.n,x+16*GUI_SCALE,y-4*GUI_SCALE);
     }
 }
 
 const planetTypes = ['tropical','lush','icy','frozen','rocky','molten','forest','desolate','dark','cloudy','poisonous','urban','mining','observation','science','bucolic','pastoral','swampy'];
 const DEG_TO_RAD =  Math.PI / 180.0;
 
-function renderStarInfo(star) {
-    let x = Math.round(star.x-camX);
-    let y = Math.round(star.y-camY);
+function renderPlanetInfo(planet) {
+    let x = Math.round(planet.x-camX);
+    let y = Math.round(planet.y-camY);
 
-    gameCTX.drawImage(planetnameBGsprite,x-64,y-80-16);
-    micro_pixel_font(star.n.toUpperCase()+' ('+planetTypes[(star.x+star.y*100000)%planetTypes.length]+' planet)',
-        x-64+4,y-75-16);
-    renderInventory(star,x-64+16,y-60-16);
+    gameCTX.drawImage(planetnameBGsprite,x-64*GUI_SCALE+16,y-80*GUI_SCALE-16*GUI_SCALE+4);
+
+    micro_pixel_font(planet.n.toUpperCase()+' ('+planetTypes[(planet.x+planet.y*100000)%planetTypes.length]+' planet)',
+        x-64*GUI_SCALE+4*GUI_SCALE+16,y-75*GUI_SCALE-16*GUI_SCALE+4);
+    
+    renderInventory(planet,x-64*GUI_SCALE+16*GUI_SCALE,y-60*GUI_SCALE-16*GUI_SCALE);
     
     //gameCTX.setTransform(1,0,0,1,x,y);
     //gameCTX.rotate(90*DEG_TO_RAD);
     //gameCTX.drawImage(arrowSprite,0,0);
     //gameCTX.setTransform(1,0,0,1,0,0); // reset
 
-    gameCTX.drawImage(arrowSprite,x-8,y-16-8);
+    gameCTX.drawImage(arrowSprite,x-8*GUI_SCALE,y-16*GUI_SCALE-8*GUI_SCALE);
 
 }
 
@@ -629,40 +628,41 @@ function render() {
     gameCTX.clearRect(0,0,gameCanvas.width,gameCanvas.height);
 	
     if (starfieldSprite) gameCTX.drawImage(starfieldSprite,-camX,-camY);
+    if (bgstarfieldSprite) gameCTX.drawImage(bgstarfieldSprite,-camX*BG_PARALLAX,-camY*BG_PARALLAX);
     
     // have to update this every frame due to motion
-    currentlyHoveringObj = closest(stars,mouseWorldX,mouseWorldY);
+    currentlyHoveringObj = closest(planets,mouseWorldX,mouseWorldY);
 
     let scount = 0;
-    for (star of stars) {
+    for (planet of planets) {
 		
-		if (onscreen(star)) {
+		if (onscreen(planet)) {
             scount++;
             if (glowSprite) {
-                if (currentlyHoveringObj==star) { // highlight
-                    gameCTX.drawImage(highlightSprite,star.x-camX-highlightSprite.width/2,star.y-camY-highlightSprite.height/2);
+                if (currentlyHoveringObj==planet) { // highlight
+                    gameCTX.drawImage(highlightSprite,planet.x-camX-highlightSprite.width/2,planet.y-camY-highlightSprite.height/2);
                 } else { // standard small glow
-                    gameCTX.drawImage(glowSprite,star.x-camX-glowSprite.width/2,star.y-camY-glowSprite.height/2);
+                    gameCTX.drawImage(glowSprite,planet.x-camX-glowSprite.width/2,planet.y-camY-glowSprite.height/2);
                 }
             }
-            gameCTX.setTransform(1,0,0,1,star.x-camX,star.y-camY);
-            gameCTX.rotate(star.ang);
-            gameCTX.drawImage(sprites,star.spr*SPR_W,0,SPR_W,SPR_H,-SPR_W/2,-SPR_H/2,SPR_W,SPR_H);
+            gameCTX.setTransform(1,0,0,1,planet.x-camX,planet.y-camY);
+            gameCTX.rotate(planet.ang);
+            gameCTX.drawImage(sprites,planet.spr*SPR_W,0,SPR_W,SPR_H,-SPR_W/2,-SPR_H/2,SPR_W,SPR_H);
             gameCTX.setTransform(1,0,0,1,0,0); // reset
             
-            if (currentlyHoveringObj==star || camFollowObj==star) {
-                renderStarInfo(star);
+            if (currentlyHoveringObj==planet || camFollowObj==planet) {
+                renderPlanetInfo(planet);
             }
             
-            // scan nearby stars?
+            // scan nearby planets?
             /*
-            if (distance(star,camFollowObj)<SCANRANGE 
-                micro_pixel_font(star.n.toUpperCase(),star.x-camX-ofsx+8,star.y-camY+16-ofsy);
+            if (distance(planet,camFollowObj)<SCANRANGE 
+                micro_pixel_font(planet.n.toUpperCase(),planet.x-camX-ofsx+8,planet.y-camY+16-ofsy);
             }
             */
         }
     }
-    //console.log('rendered '+scount+' of '+stars.length+' stars');
+    //console.log('rendered '+scount+' of '+planets.length+' planets');
     scount = 0;
 	for (ship of ships) {
         if (onscreen(ship,320)) { // extra wiggle room for long trails
@@ -764,10 +764,10 @@ function simulate() { // FIXED SIMULATION STEP
 
     if (paused) return;
 
-	for (star of stars) 
+	for (planet of planets) 
 	{ 
-		star.age++;
-	    star.ang += star.rotvel; 
+		planet.age++;
+	    planet.ang += planet.rotvel; 
 	}
 	for (ship of ships) 
 	{
@@ -790,7 +790,7 @@ function simulate() { // FIXED SIMULATION STEP
                 ship.vel = 0; // stop so we accel again
                 ship.routeLength = 0;
                 if (ship.autopilot)
-                    ship.destination = randomArrayItem(stars);
+                    ship.destination = randomArrayItem(planets);
                 else
                     ship.destination = null; // wait for orders
 			}
@@ -868,27 +868,27 @@ function init() {
 	animate();
 }
 
-function trade(ship,star) {
-    //console.log(ship.n+" is trading with "+star.n);
+function trade(ship,planet) {
+    //console.log(ship.n+" is trading with "+planet.n);
     var quantity = 1;
-    for (hold in star.cargo) {
+    for (hold in planet.cargo) {
         //if (!ship.cargo[hold]) ship.cargo[hold] = 0; // no nulls
-        //console.log("bartering "+hold+" ship:"+ship.cargo[hold]+" star:"+star.cargo[hold]);
+        //console.log("bartering "+hold+" ship:"+ship.cargo[hold]+" planet:"+planet.cargo[hold]);
 		
         // NEW cargo if we have space
 		if (ship.cargo[hold]==undefined && (ship.holdsInUse < ship.maxHolds)) {
 			ship.holdsInUse++;
 			//console.log(hold+" will be NEW HOLD #"+ship.holdsInUse);
             ship.cargo[hold] = quantity;
-            star.cargo[hold] -= quantity;
-		} else if (star.cargo[hold] > ship.cargo[hold]) { // buy from star
-            //console.log(ship.n+" buying "+quantity+" more "+hold+" from "+star.n);
+            planet.cargo[hold] -= quantity;
+		} else if (planet.cargo[hold] > ship.cargo[hold]) { // buy from planet
+            //console.log(ship.n+" buying "+quantity+" more "+hold+" from "+planet.n);
             ship.cargo[hold] += quantity;
-            star.cargo[hold] -= quantity;
-        } else if (star.cargo[hold] < ship.cargo[hold]) { // sell to star
-            //console.log(ship.n+" selling "+quantity+" "+hold+" to "+star.n);
+            planet.cargo[hold] -= quantity;
+        } else if (planet.cargo[hold] < ship.cargo[hold]) { // sell to planet
+            //console.log(ship.n+" selling "+quantity+" "+hold+" to "+planet.n);
             ship.cargo[hold] -= quantity;
-            star.cargo[hold] += quantity;
+            planet.cargo[hold] += quantity;
         } else {
             // equal - no deal
         }
