@@ -7,7 +7,9 @@ const SECTOR_W = 8000,
     PLANET_COUNT = 1000,
     SHIP_COUNT = 100,
     STARFIELD_COUNT = 50000,
-    BG_PARALLAX = 0.5,
+    BG_PARALLAX1 = 0.5,
+    BG_PARALLAX2 = 0.4,
+    BG_PARALLAX3 = 0.45,
     SHIP_MAX_HOLDS = 3,
     CLOSE_TO_DEST = 16,
     SCANRANGE = 100,
@@ -29,6 +31,7 @@ let paused,
     planetnameBGsprite,
     starfieldSprite,
     bgstarfieldSprite,
+    bg2starfieldSprite,
     camFollowObj,
     currentlyHoveringObj,
     camX = 0,
@@ -117,15 +120,15 @@ function generateGlowSprite(r,rgba1="rgba(255,255,255,1)",rgba2="rgba(255,255,25
 	return can;
 }
 
-function generateStarfieldSprite() {
+function generateStarfieldSprite(minSize=1,maxSize=8) {
     //console.log("generating starfield");
     let can = document.createElement('canvas');
 	can.width = SECTOR_W;
 	can.height = SECTOR_H;
 	let ctx = can.getContext('2d');
     for (let i=0, siz=0; i<STARFIELD_COUNT; i++) {
-        siz = randrangefloat(1,6);
-        gameCTX.globalAlpha = randrangefloat(0.25,1);
+        siz = randrangefloat(minSize,maxSize);
+        gameCTX.globalAlpha = randrangefloat(0.1,1.0);
         ctx.drawImage(glowSprite,0,0,glowSprite.width,glowSprite.height,rand(0,SECTOR_W),rand(0,SECTOR_H),siz,siz);
     }
     gameCTX.globalAlpha = 1;
@@ -249,8 +252,9 @@ function generate() {
     trailSprite = generateGradientSprite("rgba(255,255,255,0.5)",0,0,"rgba(255,255,255,0)",1000,1);
 
     arrowSprite = generateArrowSprite();
-	starfieldSprite = generateStarfieldSprite();
-	bgstarfieldSprite = generateStarfieldSprite(); // needs glowsprite
+	starfieldSprite = generateStarfieldSprite(1,6);
+	bgstarfieldSprite = generateStarfieldSprite(1,3);
+	bg2starfieldSprite = generateStarfieldSprite(0.1,1);
 
     infoBGsprite = generateGradientSprite("rgba(0,0,0,0.5)",0,0,"rgba(0,0,0,0)",128*GUI_SCALE,56*GUI_SCALE);
     statsBGsprite = generateGradientSprite("rgba(0,0,0,0.5)",0,0,"rgba(0,0,0,0)",2048*GUI_SCALE,512*GUI_SCALE);
@@ -484,7 +488,7 @@ function renderInventory(obj,cx,cy) {
         micro_pixel_font(hold+":"+obj.cargo[hold],cx+6*GUI_SCALE,cy+4);
 		let sprnum = matindex.indexOf(hold) % 17 + 3; // HARDCODED reuse
 		gameCTX.drawImage(sprites,sprnum*SPR_W,0,SPR_W,SPR_H,cx-10,cy-1+4,SPR_W,SPR_H); // mat icon
-        cy += 16*GUI_SCALE;
+        cy += 10*GUI_SCALE;
     }
 
     // no cargo? we have room for a tutorial!
@@ -627,8 +631,9 @@ function renderPlanetInfo(planet) {
 function render() {
     gameCTX.clearRect(0,0,gameCanvas.width,gameCanvas.height);
 	
-    if (starfieldSprite) gameCTX.drawImage(starfieldSprite,-camX,-camY);
-    if (bgstarfieldSprite) gameCTX.drawImage(bgstarfieldSprite,-camX*BG_PARALLAX,-camY*BG_PARALLAX);
+    if (starfieldSprite) gameCTX.drawImage(starfieldSprite,-camX*BG_PARALLAX1,-camY*BG_PARALLAX1);
+    if (bgstarfieldSprite) gameCTX.drawImage(bgstarfieldSprite,-camX*BG_PARALLAX2,-camY*BG_PARALLAX2);
+    if (bg2starfieldSprite) gameCTX.drawImage(bgstarfieldSprite,-camX*BG_PARALLAX3,-camY*BG_PARALLAX3);
     
     // have to update this every frame due to motion
     currentlyHoveringObj = closest(planets,mouseWorldX,mouseWorldY);
