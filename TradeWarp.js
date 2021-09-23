@@ -381,14 +381,14 @@ function onclick(e) {
     let nearestPlanet = closest(planets,mouseWorldX,mouseWorldY);
     let planetDist = dist(nearestPlanet.x,nearestPlanet.y,mouseWorldX,mouseWorldY);
 
-    if (planetDist < CLOSE_TO_DEST) {
+    //if (planetDist < CLOSE_TO_DEST) { // only move if we click really close?
         //console.log("clicked planet "+nearestPlanet.n);
         if (camFollowObj) {
             camFollowObj.destination = nearestPlanet;
             camFollowObj.routeLength = distance(camFollowObj,camFollowObj.destination); // so we know eta
             //console.log("starting a journey of length "+camFollowObj.routeLength);
         }
-    }
+    //}
     
     if (shipDist < CLOSE_TO_DEST) {
         //console.log("clicked ship "+nearestShip.n);
@@ -494,7 +494,7 @@ function renderInventory(obj,cx,cy) {
     // no cargo? we have room for a tutorial!
     if (!holdsused) {
         gameCTX.globalAlpha = 0.25;
-        micro_pixel_font("Cargo holds are empty.\nClick ships and planets to warp.\n\nShips auto-trade to\nmaximize profit.",cx-8,cy+4);
+        micro_pixel_font("Cargo holds are empty.\nClick a planet to warp.\n\nShips auto-trade to\nmaximize profit.",cx-8,cy+4);
         gameCTX.globalAlpha = 1;
     }
     
@@ -612,19 +612,19 @@ function renderPlanetInfo(planet) {
     let x = Math.round(planet.x-camX);
     let y = Math.round(planet.y-camY);
 
-    gameCTX.drawImage(planetnameBGsprite,x-64*GUI_SCALE+16,y-80*GUI_SCALE-16*GUI_SCALE+4);
+    gameCTX.drawImage(planetnameBGsprite,x-64*GUI_SCALE+16,y-80*GUI_SCALE-16+4);
 
     micro_pixel_font(planet.n.toUpperCase()+' ('+planetTypes[(planet.x+planet.y*100000)%planetTypes.length]+' planet)',
-        x-64*GUI_SCALE+4*GUI_SCALE+16,y-75*GUI_SCALE-16*GUI_SCALE+4);
+        x-64*GUI_SCALE+4*GUI_SCALE+16,y-75*GUI_SCALE-16+4);
     
-    renderInventory(planet,x-64*GUI_SCALE+16*GUI_SCALE,y-60*GUI_SCALE-16*GUI_SCALE);
+    renderInventory(planet,x-64*GUI_SCALE+16*GUI_SCALE,y-60*GUI_SCALE-16);
     
     //gameCTX.setTransform(1,0,0,1,x,y);
     //gameCTX.rotate(90*DEG_TO_RAD);
     //gameCTX.drawImage(arrowSprite,0,0);
     //gameCTX.setTransform(1,0,0,1,0,0); // reset
 
-    gameCTX.drawImage(arrowSprite,x-8*GUI_SCALE,y-16*GUI_SCALE-8*GUI_SCALE);
+    gameCTX.drawImage(arrowSprite,x-8,y-16*GUI_SCALE+4);
 
 }
 
@@ -658,7 +658,18 @@ function render() {
             if (currentlyHoveringObj==planet || camFollowObj==planet) {
                 renderPlanetInfo(planet);
             }
-            
+
+            // resource icons
+            let iconcount = 0;
+            for (hold in planet.cargo) { iconcount++; } // count them
+            let centeroffset = iconcount*SPR_W/2;
+            iconcount = 0;
+            for (hold in planet.cargo) {
+                let sprnum = matindex.indexOf(hold) % 17 + 3; // HARDCODED reuse
+                gameCTX.drawImage(sprites,sprnum*SPR_W,0,SPR_W,SPR_H,Math.round(planet.x-centeroffset+SPR_W*iconcount-camX),Math.round(planet.y+16-camY),SPR_W,SPR_H); // mat icon
+                iconcount++;
+            }
+
             // scan nearby planets?
             /*
             if (distance(planet,camFollowObj)<SCANRANGE 
